@@ -25,67 +25,62 @@ namespace DirtyEmlViewer
             }
         }
 
-        private readonly DirectoryInfo _emailsDir;
-        private readonly FileInfo _selectedFile;
+        private DirectoryInfo _emailsDir;
 
 
-        public Form1(DirectoryInfo emailsDir, FileInfo file = null)
+        public Form1(DirectoryInfo emailsDir = null, FileInfo file = null)
         {
             _emailsDir = emailsDir;
-            _selectedFile = file;
 
             InitializeComponent();
 
-            listView1.Columns.AddRange(new[]
+            if (file != null)
             {
-                new ColumnHeader("Subject"),
-                new ColumnHeader("To"),
-                new ColumnHeader("Recivied")
-            });
-
-            LoadMessages(true);
+                LoadMessage(file);
+            }
+            else if (emailsDir != null)
+            {
+                LoadMessages();
+            }
+            else
+            {
+                OpenFolderDialog();
+            }
         }
 
-        private void LoadMessages(Boolean selectFile = false)
+        private void LoadMessages()
         {
-            listView1.Items.Clear();
-            webBrowser1.DocumentText = "";
-            toolStripStatusLabel1.Text = "";
+            Clear();
 
-            ListViewItem item = null;
-            //dirPath = @"C:\temp\scope-email";
             if (_emailsDir.Exists)
             {
                 var files = new List<FileInfo>();
                 files.AddRange(_emailsDir.GetFiles("*.eml", SearchOption.AllDirectories));
                 files.AddRange(_emailsDir.GetFiles("*.mht", SearchOption.AllDirectories));
 
-                files = files.OrderByDescending(x => x.CreationTime).ToList();
+                files.OrderByDescending(x => x.CreationTime).ToList().ForEach(LoadMessage);
 
-                files.ForEach(file =>
-                {
-                    var tItem = listView1.Items.Add(ParseEmail(file));
-
-                    if (_selectedFile != null && file.FullName == _selectedFile.FullName)
-                    {
-                        item = tItem;
-                    }
-
-                });
-
-                if (listView1.Items.Count > 0 && item == null)
-                {
-                    item = listView1.Items[0];
-                }
-
-                toolStripStatusLabel1.Text = $@"Loaded {listView1.Items.Count} email(s) from {_emailsDir.FullName}";
+                SetStatus($@"Loaded {listView1.Items.Count} email(s) from {_emailsDir.FullName}");
             }
+        }
 
-            if (item != null)
-            {
-                item.Selected = true;
-                item.Focused = true;
-            }
+        private void SetStatus(String status)
+        {
+            toolStripStatusLabel1.Text = status;
+        }
+
+        private void Clear()
+        {
+            listView1.Items.Clear();
+            webBrowser1.DocumentText = "";
+            toolStripStatusLabel1.Text = "";
+        }
+
+        private void LoadMessage(FileInfo emlFile)
+        {
+            listView1.Items.Add(ParseEmail(emlFile));
+
+            SetStatus($@"Loaded file {emlFile.FullName}");
         }
 
         private ListViewItem ParseEmail(FileInfo emlFile)
@@ -206,6 +201,53 @@ namespace DirtyEmlViewer
             }
 
             LoadMessages();
+        }
+
+        private void loadDirectoryToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFolderDialog();
+        }
+
+        private void OpenFolderDialog()
+        {
+            if (folderBrowserDialog1.ShowDialog() == DialogResult.OK)
+            {
+                _emailsDir = new DirectoryInfo(folderBrowserDialog1.SelectedPath);
+                LoadMessages();
+            }
+        }
+
+        private void Form1_DragEnter(object sender, DragEventArgs e)
+        {
+            e.Effect = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        }
+
+        private void Form1_DragDrop(object sender, DragEventArgs e)
+        {
+            Clear();
+            var paths = (String[])e.Data.GetData(DataFormats.FileDrop);
+
+            foreach (var path in paths)
+            {
+                if (Directory.Exists(path))
+                {
+                    _emailsDir = new DirectoryInfo(path);
+                    LoadMessages();
+                } else if (File.Exists(path))
+                {
+                    LoadMessage(new FileInfo(path));
+                }
+            }
+        }
+
+        private void listView1_DragEnter(object sender, DragEventArgs e)
+        {
+            Form1_DragEnter(sender, e);
+        }
+
+        private void listView1_DragDrop(object sender, DragEventArgs e)
+        {
+            Form1_DragDrop(sender, e);
         }
     }
 }
