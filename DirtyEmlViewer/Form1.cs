@@ -249,5 +249,18 @@ namespace DirtyEmlViewer
         {
             Form1_DragDrop(sender, e);
         }
+
+        private void webBrowser1_Navigating_1(object sender, WebBrowserNavigatingEventArgs e)
+        {
+            var pattern = new Regex(@"^((http[s]?|ftp):\/)?\/?([^:\/\s]+)((\/\w+)*\/)([\w\-\.]+[^#?\s]+)(.*)?(#[\w\-]+)?$");
+            var match = pattern.Match(e.Url.ToString());
+
+            if (match.Success)
+            {
+                String link = match.Groups[0].Value;
+                Process.Start(link);
+                e.Cancel = true;
+            }
+        }
     }
 }
